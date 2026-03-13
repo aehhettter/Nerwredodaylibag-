@@ -1,48 +1,33 @@
 name: CI
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
+    branches: [ main ]
   pull_request:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch: # Das fügt einen manuellen "Start-Knopf" hinzu!
 
 jobs:
   build:
-    name: Build app
     runs-on: ubuntu-latest
-
+    # Wir erlauben dem Workflow, Pakete zu schreiben
+    permissions:
+      contents: write
     steps:
-      - name: Clone repo
-        uses: actions/checkout@v4 # v4 ist aktuell stabiler als v6-beta
-
+      - uses: actions/checkout@v4
+      
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle' # Automatisiertes Caching von Gradle
+          cache: 'gradle'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 33
-          build-tools: '33.0.2'
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Build with Gradle
-        # Wir bauen hier die Release-Variante
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew assembleRelease --stacktrace
 
-      # APK Signierung (wird nur bei Tags ausgeführt)
       - name: Sign APK
-        if: startsWith(github.ref, 'refs/tags/')
         id: sign_app
         uses: r0adkll/sign-android-release@v1
         with:
@@ -51,16 +36,9 @@ jobs:
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: "33.0.2"
 
-      # Release auf GitHub erstellen
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: app-release
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
