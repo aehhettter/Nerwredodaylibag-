@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Copy of VoicevorcodeGenerator",
+  "description": "A tool to generate \u0027Voicecode\u0027 file, Spektrum Analys , audio processing from audio files, convert to MIDI, and analyzes audio.",
+  "requestFramePermissions": []
+}

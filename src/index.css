@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap');
+@import "tailwindcss";
+
+body {
+    @apply bg-neutral-900 text-neutral-100 font-sans antialiased;
+}
+
+.fader::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 12px;
+    background: #6ee7b7;
+    cursor: ns-resize;
+    border-radius: 2px;
+}
+
+.fader::-moz-range-thumb {
+    width: 28px;
+    height: 12px;
+    background: #6ee7b7;
+    cursor: ns-resize;
+    border-radius: 2px;
+    border: none;
+}
