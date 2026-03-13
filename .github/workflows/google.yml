@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch: # Das fügt einen manuellen "Start-Knopf" hinzu!
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Wir erlauben dem Workflow, Pakete zu schreiben
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Sign APK
+        id: sign_app
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+        run: |-
+          curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz
+          chmod u+x ./kustomize
+
+      # Deploy the Docker image to the GKE cluster
+      - name: 'Deploy to GKE'
+        run: |-
+          # replacing the image name in the k8s template
+          ./kustomize edit set image LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG=$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:$GITHUB_SHA
+          ./kustomize build . | kubectl apply -f -
+          kubectl rollout status deployment/$DEPLOYMENT_NAME
+          kubectl get services -o wide
